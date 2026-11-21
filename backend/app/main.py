@@ -10,12 +10,21 @@ VayuMitra FastAPI Application:
 from __future__ import annotations
 
 import sys
+from pathlib import Path
+
+# Ensure both backend and project root are always in sys.path regardless of host working directory
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+BACKEND_DIR = Path(__file__).resolve().parent.parent
+if str(BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIR))
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(1, str(BASE_DIR))
+
 # Safeguard orjson DLL block on Windows environments
 if "orjson" not in sys.modules:
     sys.modules["orjson"] = None  # type: ignore
 
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any, AsyncIterator
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -31,8 +40,6 @@ from app.core.exceptions import global_exception_handler
 from app.core.security import InMemoryRateLimiter
 from app.routers import air_quality, chat, routine_plan
 from app.services.rag_retriever import KnowledgeIndex
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 
 @asynccontextmanager

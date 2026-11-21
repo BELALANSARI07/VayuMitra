@@ -1,11 +1,11 @@
 ﻿# Azure App Service Deployment Script for VayuMitra (PowerShell)
-# Exactly matching the single-port fullstack Azure architecture used in TerraDetective.
+# Matches the single-port fullstack Azure architecture from TerraDetective.
 
 param(
-    [string]$ResourceGroup = "rg-vayumitra",
-    [string]$PlanName = "plan-vayumitra",
-    [string]$AppName = "vayumitra-app",
-    [string]$Location = "centralindia"
+    [string]$ResourceGroup = "niu_nw_25_0397_rg_9975",
+    [string]$PlanName = "terradetective-plan",
+    [string]$AppName = "vayumitra-demo",
+    [string]$Location = "indiasouthcentral"
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,26 +24,16 @@ Set-Location "$ProjectRoot\frontend"
 npm run build
 Set-Location $ProjectRoot
 
-# 3. Create Azure Resource Group & Linux App Service Plan (B1 / F1)
-Write-Host "`n[2/4] Provisioning Azure Resources..." -ForegroundColor Yellow
-az group create --name $ResourceGroup --location $Location
-
-az appservice plan create `
-    --name $PlanName `
-    --resource-group $ResourceGroup `
-    --sku B1 `
-    --is-linux
-
-# 4. Create Web App (Python 3.11 runtime)
-Write-Host "`n[3/4] Creating Web App ($AppName)..." -ForegroundColor Yellow
+# 3. Create Web App (Python 3.11 runtime) if not already created
+Write-Host "`n[2/4] Ensuring Web App ($AppName)..." -ForegroundColor Yellow
 az webapp create `
     --resource-group $ResourceGroup `
     --plan $PlanName `
     --name $AppName `
     --runtime "PYTHON:3.11"
 
-# 5. Configure Gunicorn startup command and environment variables
-Write-Host "`n[4/4] Configuring Startup Command & Deploying Zip..." -ForegroundColor Yellow
+# 4. Configure Gunicorn startup command and environment variables
+Write-Host "`n[3/4] Configuring Startup Command & Environment Variables..." -ForegroundColor Yellow
 az webapp config set `
     --resource-group $ResourceGroup `
     --name $AppName `
@@ -54,12 +44,10 @@ az webapp config appsettings set `
     --name $AppName `
     --settings PYTHONPATH="backend" SCM_DO_BUILD_DURING_DEPLOYMENT="true"
 
-# Package and deploy via Azure zip deploy
-$ZipFile = "$ProjectRoot\vayumitra_deploy.zip"
-if (Test-Path $ZipFile) { Remove-Item $ZipFile -Force }
-
-Write-Host "Packaging deployment payload ($ZipFile)..." -ForegroundColor Yellow
-Compress-Archive -Path "backend", "data", "frontend\dist", "requirements.txt", ".webappignore" -DestinationPath $ZipFile
+# 5. Package and deploy via Azure zip deploy
+$ZipFile = "$ProjectRoot\vayumitra_azure.zip"
+Write-Host "`n[4/4] Packaging & Deploying payload ($ZipFile)..." -ForegroundColor Yellow
+python -c "import zipfile, os; from pathlib import Path; root = Path(r'$ProjectRoot'); zip_path = root / 'vayumitra_azure.zip'; z = zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED); [z.write(p, p.relative_to(root)) for folder in ['backend', 'data', 'frontend/dist'] for p in (root / folder).rglob('*') if p.is_file()]; z.write(root / 'requirements.txt', 'requirements.txt'); z.write(root / '.webappignore', '.webappignore'); z.close(); print('Zip created size:', os.path.getsize(zip_path))"
 
 Write-Host "Deploying package to Azure App Service..." -ForegroundColor Yellow
 az webapp deploy `
