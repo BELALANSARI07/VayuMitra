@@ -1,0 +1,26 @@
+# Azure App Service Deployment Ignore Rules
+.git/
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python Caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Node Modules & Caches
+frontend/node_modules/
+.DS_Store
+Thumbs.db
+
+# NOTE: DO NOT IGNORE frontend/dist/
+# Azure App Service requires frontend/dist/ to serve the compiled UI assets directly!
