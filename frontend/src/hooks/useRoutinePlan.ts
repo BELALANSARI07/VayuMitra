@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { RoutinePlanResponse } from '../types';
 import { PersonaState } from '../components/PersonaConfigurator';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export function useRoutinePlan() {
   const [plan, setPlan] = useState<RoutinePlanResponse | null>(null);

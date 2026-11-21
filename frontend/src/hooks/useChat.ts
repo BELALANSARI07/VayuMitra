@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { ChatSSEEvent, CitationRef, ImpactDelta } from '../types';
 import { ChatMessage } from '../components/VayuChatDrawer';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export function useChat(lat: number, lon: number) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);

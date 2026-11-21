@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AirQualityData } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export function useAirQuality(initialLat = 28.6139, initialLon = 77.209) {
   const [data, setData] = useState<AirQualityData | null>(null);
@@ -17,7 +17,8 @@ export function useAirQuality(initialLat = 28.6139, initialLon = 77.209) {
     setIsLoading(true);
     setError(null);
     try {
-      const url = new URL(`${API_BASE}/api/air-quality`);
+      const base = API_BASE || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8000');
+      const url = new URL(`${base}/api/air-quality`);
       url.searchParams.set('lat', lat.toString());
       url.searchParams.set('lon', lon.toString());
       if (city) url.searchParams.set('city', city);
