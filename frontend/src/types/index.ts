@@ -21,10 +21,19 @@ export type BudgetTier = 'free' | 'low' | 'medium' | 'high';
 
 export type CookingFuel = 'lpg' | 'electric' | 'biomass' | 'kerosene';
 
+export type PollutantStatus = 'Safe' | 'Above WHO' | 'Above CPCB (Unsafe)' | 'Hazardous';
+
 export interface PollutantReading {
   name: string;
   value: number;
   unit: string;
+  cpcb_limit?: number;
+  who_limit?: number;
+  cpcb_multiplier?: number;
+  who_multiplier?: number;
+  status?: PollutantStatus;
+  primary_sources?: string;
+  exceedance_health_effect?: string;
 }
 
 export interface HourlyForecast {
@@ -33,6 +42,23 @@ export interface HourlyForecast {
   pm10: number;
   aqi_label: string;
   is_safe_window: boolean;
+}
+
+export interface HealthImpactData {
+  category_label: string;
+  healthy_adults_impact: string;
+  sensitive_groups_impact: string;
+  short_term_risks: string;
+  long_term_risks: string;
+  red_flag_symptoms: string[];
+}
+
+export interface AtmosphericFactors {
+  wind_speed_kmh: number;
+  humidity_pct: number;
+  temperature_c: number;
+  dispersion_verdict: string;
+  best_ventilation_window: string;
 }
 
 export interface AirQualityData {
@@ -51,6 +77,11 @@ export interface AirQualityData {
   humidity_pct?: number;
   wind_speed_kmh?: number;
   data_source: string;
+  overall_aqi?: number;
+  dominant_pollutant?: string;
+  cigarette_equivalent_24h?: number;
+  health_impact?: HealthImpactData;
+  atmospheric_factors?: AtmosphericFactors;
 }
 
 export interface ImpactDelta {
@@ -88,6 +119,23 @@ export interface SustainableSwap {
   impact: ImpactDelta;
 }
 
+export interface QuantifiedImpactCard {
+  pm25_reduction_pct: number;
+  co2_saved_kg_week: number;
+  summary_badge: string;
+}
+
+export interface ActionPlanCard {
+  id: string;
+  title: string;
+  category: 'Routine' | 'Indoor Hack' | 'Sustainable Swap' | 'Mask & Commute';
+  budget_tier: 'Free/DIY' | 'Low-Cost' | 'Smart Home';
+  action_detail: string;
+  quantified_impact: QuantifiedImpactCard;
+  why_it_works: string;
+  source_citation: string;
+}
+
 export interface RoutinePlanResponse {
   location_label: string;
   current_aqi: number;
@@ -98,6 +146,7 @@ export interface RoutinePlanResponse {
   sustainable_swaps: SustainableSwap[];
   total_impact: ImpactDelta;
   generated_at: string;
+  action_cards?: ActionPlanCard[];
 }
 
 export interface CitationRef {

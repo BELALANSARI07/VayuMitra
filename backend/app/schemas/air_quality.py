@@ -13,8 +13,15 @@ class AirQualityRequest(BaseModel):
 
 class PollutantReading(BaseModel):
     name: str                           # "PM2.5", "PM10", "NO2", "SO2", "O3", "CO"
-    value: float                        # µg/m³
+    value: float                        # µg/m³ or mg/m³ for CO
     unit: str = "µg/m³"
+    cpcb_limit: float | None = None
+    who_limit: float | None = None
+    cpcb_multiplier: float | None = None
+    who_multiplier: float | None = None
+    status: str | None = None           # "Safe" | "Above WHO" | "Above CPCB (Unsafe)" | "Hazardous"
+    primary_sources: str | None = None
+    exceedance_health_effect: str | None = None
 
 
 class HourlyForecast(BaseModel):
@@ -23,6 +30,23 @@ class HourlyForecast(BaseModel):
     pm10: float
     aqi_label: str                      # "Good", "Moderate", "Severe", etc.
     is_safe_window: bool                # True if AQI <= 100 (Satisfactory)
+
+
+class HealthImpactData(BaseModel):
+    category_label: str
+    healthy_adults_impact: str
+    sensitive_groups_impact: str
+    short_term_risks: str
+    long_term_risks: str
+    red_flag_symptoms: list[str] = Field(default_factory=list)
+
+
+class AtmosphericFactors(BaseModel):
+    wind_speed_kmh: float
+    humidity_pct: float
+    temperature_c: float
+    dispersion_verdict: str
+    best_ventilation_window: str
 
 
 class AirQualityResponse(BaseModel):
@@ -41,3 +65,9 @@ class AirQualityResponse(BaseModel):
     humidity_pct: float | None = None
     wind_speed_kmh: float | None = None
     data_source: str                    # "open-meteo" | "waqi" | "cached"
+    # Upgraded fields:
+    overall_aqi: int | None = None
+    dominant_pollutant: str | None = None
+    cigarette_equivalent_24h: float | None = None
+    health_impact: HealthImpactData | None = None
+    atmospheric_factors: AtmosphericFactors | None = None

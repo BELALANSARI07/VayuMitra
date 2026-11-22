@@ -3,7 +3,8 @@ Air Quality Service:
 - Fetches real-time pollutants from Open-Meteo Air Quality API with WAQI/offline fallback
 - Caches responses per geohash with 15-minute TTL
 - Computes NAQI classifications, primary pollutants, and 24-hour forecast
-- Deterministically identifies the day's safest outdoor activity window
+- Grounded in health_risk_engine for CPCB/WHO multipliers, cigarette equivalents,
+  atmospheric dispersion analysis, and clinical health impacts
 """
 from __future__ import annotations
 
@@ -15,7 +16,19 @@ import httpx
 from app.core.cache import TTLCache
 from app.core.config import settings
 from app.core.constants import AQI_BANDS, DEMO_PRESETS
-from app.schemas.air_quality import AirQualityResponse, HourlyForecast, PollutantReading
+from app.schemas.air_quality import (
+    AirQualityResponse,
+    AtmosphericFactors,
+    HealthImpactData,
+    HourlyForecast,
+    PollutantReading,
+)
+from app.services.health_risk_engine import (
+    analyze_pollutant,
+    assess_atmospheric_factors,
+    map_cpcb_aqi_health_impact,
+    pm25_to_cigarettes_24h,
+)
 
 logger = logging.getLogger("vayumitra.air_quality")
 
@@ -78,7 +91,7 @@ def _resolve_location_label(lat: float, lon: float, city: str | None, pincode: s
 def _find_best_safe_window(hourly: list[HourlyForecast]) -> str:
     """Identify the optimal continuous outdoor window today."""
     if not hourly:
-        return "12:00–14:00 (Lowest diurnal inversion)"
+        return "13:00–15:00 (Diurnal boundary layer dispersion)"
 
     # Find the hour with minimum PM2.5
     min_hour_idx = min(range(len(hourly)), key=lambda i: hourly[i].pm25)
@@ -104,16 +117,39 @@ async def _fetch_open_meteo(lat: float, lon: float, client: httpx.AsyncClient) -
     return resp.json()
 
 
+def _build_pollutant_readings(
+    pm25: float,
+    pm10: float,
+    no2: float,
+    so2: float,
+    o3: float,
+    co: float,
+) -> list[PollutantReading]:
+    """Build list of 6 enriched PollutantReading models."""
+    return [
+        PollutantReading(**analyze_pollutant("PM2.5", pm25)),
+        PollutantReading(**analyze_pollutant("PM10", pm10)),
+        PollutantReading(**analyze_pollutant("NO2", no2)),
+        PollutantReading(**analyze_pollutant("SO2", so2)),
+        PollutantReading(**analyze_pollutant("O3", o3)),
+        PollutantReading(**analyze_pollutant("CO", co)),
+    ]
+
+
 def _generate_synthetic_fallback(lat: float, lon: float, location_label: str) -> AirQualityResponse:
     """Deterministic fallback when external API is offline or rate-limited."""
-    # Typical severe winter smog baseline for Delhi-NCR region
     now = datetime.now(timezone.utc)
     base_pm25 = 285.0
+    base_pm10 = round(base_pm25 * 1.65, 1)
+    base_no2 = 78.4
+    base_so2 = 18.2
+    base_o3 = 42.1
+    base_co = 1.8  # mg/m³
+
     aqi_val = _pm25_to_aqi(base_pm25)
     band = _get_aqi_band(aqi_val)
 
     hourly: list[HourlyForecast] = []
-    # Diurnal pattern: peaks morning & night, dips in afternoon
     for h in range(24):
         dip = 80.0 if 12 <= h <= 15 else 0.0
         h_pm25 = max(40.0, base_pm25 - dip + (h % 5) * 5)
@@ -129,6 +165,22 @@ def _generate_synthetic_fallback(lat: float, lon: float, location_label: str) ->
             )
         )
 
+    pollutants = _build_pollutant_readings(
+        pm25=base_pm25,
+        pm10=base_pm10,
+        no2=base_no2,
+        so2=base_so2,
+        o3=base_o3,
+        co=base_co,
+    )
+
+    temp_c = 16.5
+    hum_pct = 76.0
+    wind_kmh = 5.2
+
+    health_impact = HealthImpactData(**map_cpcb_aqi_health_impact(aqi_val))
+    atmospheric_factors = AtmosphericFactors(**assess_atmospheric_factors(wind_kmh, hum_pct, temp_c))
+
     return AirQualityResponse(
         location_label=location_label,
         lat=lat,
@@ -138,20 +190,18 @@ def _generate_synthetic_fallback(lat: float, lon: float, location_label: str) ->
         aqi_label=str(band["label"]),
         aqi_color_hex=str(band["color_hex"]),
         primary_pollutant="PM2.5",
-        pollutants=[
-            PollutantReading(name="PM2.5", value=base_pm25),
-            PollutantReading(name="PM10", value=round(base_pm25 * 1.65, 1)),
-            PollutantReading(name="NO2", value=78.4),
-            PollutantReading(name="SO2", value=18.2),
-            PollutantReading(name="O3", value=42.1),
-            PollutantReading(name="CO", value=1.8, unit="mg/m³"),
-        ],
+        pollutants=pollutants,
         hourly_forecast_24h=hourly,
         best_safe_window="13:00–15:00 (Diurnal boundary layer dispersion)",
-        temperature_c=16.5,
-        humidity_pct=76.0,
-        wind_speed_kmh=6.2,
+        temperature_c=temp_c,
+        humidity_pct=hum_pct,
+        wind_speed_kmh=wind_kmh,
         data_source="cached_fallback",
+        overall_aqi=aqi_val,
+        dominant_pollutant="PM2.5",
+        cigarette_equivalent_24h=pm25_to_cigarettes_24h(base_pm25),
+        health_impact=health_impact,
+        atmospheric_factors=atmospheric_factors,
     )
 
 
@@ -176,7 +226,14 @@ async def fetch_air_quality(
         current = raw_data.get("current", {})
         hourly_raw = raw_data.get("hourly", {})
 
-        pm25 = float(current.get("pm2_5", 220.0))
+        pm25 = float(current.get("pm2_5", 220.0) or 220.0)
+        pm10 = float(current.get("pm10", pm25 * 1.5) or (pm25 * 1.5))
+        no2 = float(current.get("nitrogen_dioxide", 65.0) or 65.0)
+        so2 = float(current.get("sulphur_dioxide", 14.0) or 14.0)
+        o3 = float(current.get("ozone", 38.0) or 38.0)
+        co_ug = float(current.get("carbon_monoxide", 1200.0) or 1200.0)
+        co_mg = round(co_ug / 1000.0, 2)
+
         aqi_val = _pm25_to_aqi(pm25)
         band = _get_aqi_band(aqi_val)
 
@@ -204,6 +261,22 @@ async def fetch_air_quality(
 
         best_window = _find_best_safe_window(hourly_list)
 
+        pollutants = _build_pollutant_readings(
+            pm25=pm25,
+            pm10=pm10,
+            no2=no2,
+            so2=so2,
+            o3=o3,
+            co=co_mg,
+        )
+
+        temp_c = 18.0
+        hum_pct = 72.0
+        wind_kmh = 7.5
+
+        health_impact = HealthImpactData(**map_cpcb_aqi_health_impact(aqi_val))
+        atmospheric_factors = AtmosphericFactors(**assess_atmospheric_factors(wind_kmh, hum_pct, temp_c))
+
         result = AirQualityResponse(
             location_label=location_label,
             lat=lat,
@@ -213,20 +286,18 @@ async def fetch_air_quality(
             aqi_label=str(band["label"]),
             aqi_color_hex=str(band["color_hex"]),
             primary_pollutant="PM2.5",
-            pollutants=[
-                PollutantReading(name="PM2.5", value=pm25),
-                PollutantReading(name="PM10", value=float(current.get("pm10", pm25 * 1.5) or pm25 * 1.5)),
-                PollutantReading(name="NO2", value=float(current.get("nitrogen_dioxide", 65.0) or 65.0)),
-                PollutantReading(name="SO2", value=float(current.get("sulphur_dioxide", 14.0) or 14.0)),
-                PollutantReading(name="O3", value=float(current.get("ozone", 38.0) or 38.0)),
-                PollutantReading(name="CO", value=round(float(current.get("carbon_monoxide", 1200.0) or 1200.0) / 1000.0, 2), unit="mg/m³"),
-            ],
+            pollutants=pollutants,
             hourly_forecast_24h=hourly_list,
             best_safe_window=best_window,
-            temperature_c=18.0,
-            humidity_pct=72.0,
-            wind_speed_kmh=7.5,
+            temperature_c=temp_c,
+            humidity_pct=hum_pct,
+            wind_speed_kmh=wind_kmh,
             data_source="open-meteo",
+            overall_aqi=aqi_val,
+            dominant_pollutant="PM2.5",
+            cigarette_equivalent_24h=pm25_to_cigarettes_24h(pm25),
+            health_impact=health_impact,
+            atmospheric_factors=atmospheric_factors,
         )
         cache.set(cache_key, result)
         return result

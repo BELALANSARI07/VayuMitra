@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { SkipLink } from './components/ui/SkipLink';
 import { HeroLocationBar } from './components/HeroLocationBar';
+import { DispersionAndWeatherBar } from './components/DispersionAndWeatherBar';
+import { HealthImpactPanel } from './components/HealthImpactPanel';
+import { PollutantBreakdownGrid } from './components/PollutantBreakdownGrid';
 import { PersonaConfigurator, PersonaState } from './components/PersonaConfigurator';
 import { ActionableRoutineGrid } from './components/ActionableRoutineGrid';
 import { VayuChatDrawer } from './components/VayuChatDrawer';
@@ -51,8 +54,34 @@ export const App: React.FC = () => {
           onSearch={searchLocation}
         />
 
-        {/* 2. Main Content Landmark */}
-        <main id="main-content" tabIndex={-1} className="space-y-8 focus:outline-none">
+        {/* 2. Meteorological & Atmospheric Dispersion Bar */}
+        {airQuality && (
+          <DispersionAndWeatherBar
+            atmosphericFactors={airQuality.atmospheric_factors}
+            temperatureC={airQuality.temperature_c}
+            humidityPct={airQuality.humidity_pct}
+            windSpeedKmh={airQuality.wind_speed_kmh}
+            bestSafeWindow={airQuality.best_safe_window}
+          />
+        )}
+
+        {/* 3. Main Content Landmark */}
+        <main id="main-content" tabIndex={-1} className="space-y-10 focus:outline-none">
+          {/* Clinical Health Risk & Physiological Impact Panel */}
+          {airQuality && (
+            <HealthImpactPanel
+              healthImpact={airQuality.health_impact}
+              cigaretteEquivalent={airQuality.cigarette_equivalent_24h}
+              aqiValue={airQuality.aqi_value}
+              aqiLabel={airQuality.aqi_label}
+            />
+          )}
+
+          {/* 6 Core Pollutants Exceedance Analysis Grid */}
+          {airQuality && (
+            <PollutantBreakdownGrid pollutants={airQuality.pollutants} />
+          )}
+
           {/* Persona Configurator */}
           <PersonaConfigurator
             persona={persona}
@@ -82,7 +111,7 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* 3. Footer Landmark */}
+      {/* 4. Footer Landmark */}
       <footer role="contentinfo" className="bg-[#FFE8D6]/40 border-t border-[#FFDAB9] py-8 mt-12">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center sm:flex sm:items-center sm:justify-between text-xs text-[#4B5563]">
           <div>
@@ -97,11 +126,13 @@ export const App: React.FC = () => {
             <span>WHO AQG 2021</span>
             <span>•</span>
             <span>ICRP-66 Model</span>
+            <span>•</span>
+            <span>Berkeley Earth Rule</span>
           </div>
         </div>
       </footer>
 
-      {/* 4. VayuChat Floating Drawer */}
+      {/* 5. VayuChat Floating Drawer */}
       <VayuChatDrawer
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}

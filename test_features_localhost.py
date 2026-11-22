@@ -28,8 +28,14 @@ def test_all():
         print(f"  Location: {aqi['location_label']}")
         print(f"  Current NAQI: {aqi['aqi_value']} ({aqi['aqi_label']})")
         print(f"  Primary Pollutant: {aqi['primary_pollutant']}")
+        print(f"  24h Cigarette Equivalent: {aqi.get('cigarette_equivalent_24h')} cigs")
+        print(f"  Atmospheric Dispersion: {aqi.get('atmospheric_factors', {}).get('dispersion_verdict')}")
+        print(f"  Health Impact Category: {aqi.get('health_impact', {}).get('category_label')}")
+        print(f"  Red-Flag Symptoms Count: {len(aqi.get('health_impact', {}).get('red_flag_symptoms', []))}")
         print(f"  24h Safe Outdoor Window: {aqi['best_safe_window']}")
         print(f"  Pollutant readings available: {len(aqi['pollutants'])}")
+        for pol in aqi['pollutants'][:3]:
+            print(f"    - {pol['name']}: {pol['value']} {pol['unit']} [{pol.get('status')}] (CPCB: {pol.get('cpcb_multiplier')}x, WHO: {pol.get('who_multiplier')}x)")
         print(f"  Hourly timeline datapoints: {len(aqi['hourly_forecast_24h'])}")
 
     # 3. Personalized Routine Plan (Pillars 1, 2, 3, 4)
@@ -56,6 +62,10 @@ def test_all():
         for rt in plan["routines"]:
             print(f"    - [{rt['time_slot']}]: {rt['action']}")
             print(f"      Delta: -{rt['impact']['pm25_reduction_ug_per_day']} ug PM2.5/day (-{rt['impact']['cigarette_equivalents_saved']} cig eq.)")
+
+        print(f"  Interactive Action Cards Available: {len(plan.get('action_cards', []))}")
+        for card in plan.get("action_cards", [])[:3]:
+            print(f"    - [{card['category']} | {card['budget_tier']}]: {card['title']} -> {card['quantified_impact']['summary_badge']}")
 
         print("  Pillar 2 (Budget-Tiered Indoor Hacks):")
         for hk in plan["indoor_hacks"]:

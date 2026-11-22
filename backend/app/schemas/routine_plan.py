@@ -94,6 +94,23 @@ class SustainableSwap(BaseModel):
     impact: ImpactDelta
 
 
+class QuantifiedImpactCard(BaseModel):
+    pm25_reduction_pct: float
+    co2_saved_kg_week: float
+    summary_badge: str
+
+
+class ActionPlanCard(BaseModel):
+    id: str
+    title: str
+    category: str                       # "Routine" | "Indoor Hack" | "Sustainable Swap" | "Mask & Commute"
+    budget_tier: str                    # "Free/DIY" | "Low-Cost" | "Smart Home"
+    action_detail: str
+    quantified_impact: QuantifiedImpactCard
+    why_it_works: str
+    source_citation: str
+
+
 class RoutinePlanResponse(BaseModel):
     location_label: str
     current_aqi: int
@@ -104,3 +121,4 @@ class RoutinePlanResponse(BaseModel):
     sustainable_swaps: list[SustainableSwap]
     total_impact: ImpactDelta
     generated_at: str                   # ISO timestamp
+    action_cards: list[ActionPlanCard] = Field(default_factory=list)

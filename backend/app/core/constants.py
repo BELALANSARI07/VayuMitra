@@ -23,6 +23,58 @@ INDOOR_OUTDOOR_RATIO_SEALED: float = 0.30            # Weather-stripped, foam-se
 # --- DIY Filtration Efficiency (Huang et al. / Smart Air CADR field evaluations) ---
 DIY_BOX_FAN_FILTER_EFFICIENCY: float = 0.62           # 62% single-pass PM2.5 reduction
 
+# --- Safe Air Quality Limits (CPCB NAAQS 2009 / 2024 & WHO Air Quality Guidelines 2021) ---
+POLLUTANT_THRESHOLDS: dict[str, dict[str, float | str]] = {
+    "pm2_5": {
+        "cpcb_24h": 60.0,
+        "who_24h": 15.0,
+        "unit": "µg/m³",
+        "display_name": "PM2.5",
+        "sources": "Vehicles, biomass & crop stubble burning, secondary sulfates/nitrates, industrial emissions",
+        "health_effect": "Penetrates deep into alveolar lung tissues and enters bloodstream, triggering systemic inflammation, cardiovascular ischemia, and acute asthmatic exacerbation.",
+    },
+    "pm10": {
+        "cpcb_24h": 100.0,
+        "who_24h": 45.0,
+        "unit": "µg/m³",
+        "display_name": "PM10",
+        "sources": "Road dust, construction & demolition activity, windblown dust, unpaved surfaces",
+        "health_effect": "Deposits in upper respiratory airways and trachea; causes bronchial irritation, persistent coughing, reduced peak expiratory flow, and aggravated bronchitis.",
+    },
+    "no2": {
+        "cpcb_24h": 80.0,
+        "who_24h": 25.0,
+        "unit": "µg/m³",
+        "display_name": "NO₂",
+        "sources": "Internal combustion vehicle exhaust (especially diesel), thermal power plants, industrial boilers",
+        "health_effect": "Increases bronchial hyper-responsiveness, wheezing, and pulmonary edema; acts as primary precursor for ground-level ozone and nitrate aerosol formation.",
+    },
+    "so2": {
+        "cpcb_24h": 80.0,
+        "who_24h": 40.0,
+        "unit": "µg/m³",
+        "display_name": "SO₂",
+        "sources": "Coal-fired power generation, oil refineries, heavy industrial fuel oil combustion",
+        "health_effect": "Causes acute bronchoconstriction within 10 minutes of inhalation in asthmatic individuals, reflex airway spasms, and ocular stinging.",
+    },
+    "o3": {
+        "cpcb_24h": 100.0,
+        "who_24h": 100.0,
+        "unit": "µg/m³",
+        "display_name": "O₃ (Ozone)",
+        "sources": "Photochemical smog generated when solar UV irradiates vehicular NOx and volatile organic compounds (VOCs)",
+        "health_effect": "Potent pulmonary oxidant that degrades lung epithelial lining, severely decreases vital lung capacity, and induces chest tightness during outdoor exertion.",
+    },
+    "co": {
+        "cpcb_24h": 2.0,
+        "who_24h": 4.0,
+        "unit": "mg/m³",
+        "display_name": "CO (Carbon Monoxide)",
+        "sources": "Incomplete combustion in gasoline/diesel vehicle tailpipes, biomass chulhas, gas heaters",
+        "health_effect": "Binds preferentially with hemoglobin forming carboxyhemoglobin (COHb), reducing oxygen transport capacity to heart and brain; causes giddiness, impaired reflexes, and cardiac ischemia.",
+    },
+}
+
 # --- National Air Quality Index (NAQI) Bands (CPCB India Standard) ---
 AQI_BANDS: list[dict[str, object]] = [
     {"label": "Good",         "min": 0,   "max": 50,  "color_hex": "#15803D", "outdoor_advice": "Enjoy outdoor activities freely."},
