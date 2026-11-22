@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ActionPlanCard, RoutinePlanResponse } from '../types';
 
 interface ActionableRoutineGridProps {
@@ -11,6 +11,12 @@ export const ActionableRoutineGrid: React.FC<ActionableRoutineGridProps> = ({ pl
   const [selectedFilter, setSelectedFilter] = useState<FilterCategory>('All');
   const [completedCardIds, setCompletedCardIds] = useState<Set<string>>(new Set());
   const [expandedCardIds, setExpandedCardIds] = useState<Set<string>>(new Set());
+
+  // Reset checkboxes when a new plan is generated
+  useEffect(() => {
+    setCompletedCardIds(new Set());
+    setExpandedCardIds(new Set());
+  }, [plan.generated_at]);
 
   // Adapt fallback cards if plan.action_cards is empty
   const allCards: ActionPlanCard[] = useMemo(() => {
@@ -123,8 +129,34 @@ export const ActionableRoutineGrid: React.FC<ActionableRoutineGridProps> = ({ pl
     return Math.round(sumPct / checkedCount);
   }, [allCards, completedCardIds, checkedCount]);
 
+  // Formatted plan generation time
+  const formattedTime = useMemo(() => {
+    try {
+      return new Date(plan.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    } catch {
+      return 'Just now';
+    }
+  }, [plan.generated_at]);
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 animate-fadeIn">
+      {/* 0. Dynamic Plan Timestamp & Personalization Feedback Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl shadow-2xs">
+        <div className="flex items-center gap-2.5 text-xs sm:text-sm font-extrabold text-emerald-950">
+          <span className="p-1 bg-emerald-200 rounded-lg text-sm" aria-hidden="true">
+            ⚡
+          </span>
+          <span>Personalized Plan Dynamically Computed</span>
+          <span className="text-xs font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+            Updated at {formattedTime}
+          </span>
+        </div>
+        <div className="text-xs text-emerald-900 font-bold flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+          <span>{allCards.length} Tailored Interventions Loaded</span>
+        </div>
+      </div>
+
       {/* 1. Total Aggregated Impact Hero Card (Pillar 4) */}
       <section
         aria-labelledby="total-impact-heading"
@@ -141,7 +173,7 @@ export const ActionableRoutineGrid: React.FC<ActionableRoutineGridProps> = ({ pl
               </h2>
             </div>
             <p className="text-sm text-gray-300 mt-1 max-w-xl">
-              Deterministic calculations based on ICRP-66 respiratory minute ventilation rates and CPCB transport emission inventories.
+              Deterministic calculations based on ICRP-66 respiratory minute ventilation rates and CPCB transport emission inventories for your selected profile.
             </p>
           </div>
 
